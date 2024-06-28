@@ -75,36 +75,52 @@ uint32_t HEVCParser::readExpGolombCode(const std::vector<uint8_t>& buffer, size_
 //Reference: https://www.itu.int/rec/T-REC-H.265
 HEVCInfo HEVCParser::parseHevcSps(const uint8_t* data, size_t size) {
     std::vector<uint8_t> buffer(data, data + size);
-    size_t bitOffset = 0;
+    size_t bitOffset = 0; 
+    // forbidden_zero_bit 1 bit
+    // nal_unit_tpe 6 bits -> 64 possible tpyes!
 
-    // Skip the NAL unit header
-    bitOffset += 4 * 8;
+    // 0-31 VCL
+    // 32 - 40 non-VCL
+    // 35 Video Parameter Set (VPS)
+    // 33 Sequence Parameter Set
+
+    // Skip the NAL unit header (4 bytes or 32 bits).
+       bitOffset += 4 * 8;
 
     HEVCInfo info;
+    // Extract SPS video parameter set ID (4 bits).
     int spsVideoParameterSetId = extractBits(buffer, bitOffset, 4);
+    // Extract SPS max sub-layers minus 1 (3 bits).
     int spsMaxSubLayersMinus1 = extractBits(buffer, bitOffset, 3);
+    // Extract SPS temporal ID nesting flag (1 bit).
     int spsTemporalIdNestingFlag = extractBits(buffer, bitOffset, 1);
 
-    // Parse profile tier level
-    info.profileSpace = extractBits(buffer, bitOffset, 2);
-    info.tierFlag = extractBits(buffer, bitOffset, 1);
-    info.profileIdc = extractBits(buffer, bitOffset, 5);
-    bitOffset += 32; // Skipping some profile compatibility flags
-    bitOffset += 16; // Skipping more flags
+    // Profile tier level information extraction.
+    info.profileSpace = extractBits(buffer, bitOffset, 2); // profile_space (2 bits)
+    info.tierFlag = extractBits(buffer, bitOffset, 1); // tier_flag (1 bit)
+    info.profileIdc = extractBits(buffer, bitOffset, 5); // profile_idc (5 bits)
+    bitOffset += 32; // Skipping some profile compatibility flags     // Skip 32 bits for profile compatibility flags.
+    bitOffset += 16; // Skipping more flags // Skip 16 bits for reserved fields and other flags.
+    // Level IDC (8 bits)
     info.levelIdc = extractBits(buffer, bitOffset, 8);
 
+    // SPS sequence parameter set ID.
     int spsSeqParameterSetId = readExpGolombCode(buffer, bitOffset);
-
+    // Chroma format IDC.
     info.chromaFormatIdc = readExpGolombCode(buffer, bitOffset);
     if (info.chromaFormatIdc == 3) {
+        // Separate colour plane flag (1 bit if chroma_format_idc is 3).
         extractBits(buffer, bitOffset, 1); // separate_colour_plane_flag
     }
 
+    // Picture width and height in luma samples.
     int picWidthInLumaSamples = readExpGolombCode(buffer, bitOffset);
     int picHeightInLumaSamples = readExpGolombCode(buffer, bitOffset);
 
+    // Conformance window flag (1 bit).
     bool conformanceWindowFlag = extractBits(buffer, bitOffset, 1);
     if (conformanceWindowFlag) {
+        // Conformance window offsets (exp-Golomb coded).
         int confWinLeftOffset = readExpGolombCode(buffer, bitOffset);
         int confWinRightOffset = readExpGolombCode(buffer, bitOffset);
         int confWinTopOffset = readExpGolombCode(buffer, bitOffset);
@@ -117,9 +133,10 @@ HEVCInfo HEVCParser::parseHevcSps(const uint8_t* data, size_t size) {
         info.width = picWidthInLumaSamples;
         info.height = picHeightInLumaSamples;
     }
-
+    // Bit depth for luma and chroma samples
     info.bitDepthLuma = readExpGolombCode(buffer, bitOffset) + 8;
     info.bitDepthChroma = readExpGolombCode(buffer, bitOffset) + 8;
 
+    // Return the extracted SPS information
     return info;
 }

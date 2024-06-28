@@ -33,7 +33,7 @@ inline RGB yuvToRgb(YUV yuv) {
 
     return rgb;
 }
-
+//Reference: https://en.wikipedia.org/wiki/Y%E2%80%B2UV
 // BT.2020 (Rec. 2020)
 // Usage:
 // Ultra High Definition TV = UHDTV

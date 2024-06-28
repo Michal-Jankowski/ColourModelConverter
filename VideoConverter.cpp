@@ -1,6 +1,8 @@
 #include "VideoConverter.hpp"
 
+// Opens the input file and prepares the format context.
 bool VideoConverter::openInputFile() {
+    // Allocate an AVFormatContext for the input file.
     inputFormatContext = avformat_alloc_context();
     if (avformat_open_input(&inputFormatContext, inputFilename.c_str(), nullptr, nullptr) < 0) {
         std::cerr << "Could not open input file: " << inputFilename << std::endl;
@@ -16,6 +18,7 @@ bool VideoConverter::openInputFile() {
     return true;
 }
 
+// Initializes the decoder contexts for both video and audio streams.
 bool VideoConverter::initializeDecoderContexts() {
     const AVCodec* videoDecoder = nullptr;
     int videoStreamIndex = av_find_best_stream(inputFormatContext, AVMEDIA_TYPE_VIDEO, -1, -1, &videoDecoder, 0);
@@ -51,6 +54,7 @@ bool VideoConverter::initializeDecoderContexts() {
     return true;
 }
 
+// Writes the header for the output file.
 bool VideoConverter::writeOutputContext() {
 
     if (!(outputFormatContext->oformat->flags & AVFMT_NOFILE)) {
@@ -68,6 +72,7 @@ bool VideoConverter::writeOutputContext() {
     return true;
 }
 
+// Initializes the encoder contexts for both video and audio streams.
 bool VideoConverter::initializeOutputFile() {
     avformat_alloc_output_context2(&outputFormatContext, nullptr, nullptr, outputFilename.c_str());
     if (!outputFormatContext) {
@@ -90,6 +95,7 @@ bool VideoConverter::initializeOutputFile() {
     return true;
 }
 
+// Encodes and writes frames from the input file to the output file.
 bool VideoConverter::initializeEncoderContexts() {
     const AVCodec* videoEncoder = avcodec_find_encoder(AV_CODEC_ID_HEVC);
     if (!videoEncoder) {
@@ -147,6 +153,7 @@ bool VideoConverter::initializeEncoderContexts() {
     return true;
 }
 
+// Encodes and writes frames from the input file to the output file.
 void VideoConverter::encodeAndWriteFrames() {
     AVPacket* packet = av_packet_alloc();
     while (av_read_frame(inputFormatContext, packet) >= 0) {
@@ -166,6 +173,7 @@ void VideoConverter::encodeAndWriteFrames() {
             av_frame_free(&frame);
         }
         else if (packet->stream_index == audioStream->index) {
+            // Process audio frames.
             avcodec_send_packet(audioDecoderContext, packet);
             AVFrame* frame = av_frame_alloc();
             if (avcodec_receive_frame(audioDecoderContext, frame) == 0) {
@@ -185,6 +193,7 @@ void VideoConverter::encodeAndWriteFrames() {
     av_packet_free(&packet);
 }
 
+// Flushes the encoders to ensure all remaining frames are processed.
 void VideoConverter::flushEncoders() {
     AVPacket* packet = av_packet_alloc();
 
@@ -207,6 +216,7 @@ void VideoConverter::flushEncoders() {
     av_packet_free(&packet);
 }
 
+// Cleans up and releases all allocated resources.
 void VideoConverter::cleanup() {
     av_write_trailer(outputFormatContext);
     avio_closep(&outputFormatContext->pb);
@@ -218,6 +228,7 @@ void VideoConverter::cleanup() {
     avformat_close_input(&inputFormatContext);
 }
 
+// Main function to convert the input video to HEVC format.
 void VideoConverter::convertToHEVC() {
     if (!openInputFile()) {
         return;
